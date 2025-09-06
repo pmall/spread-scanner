@@ -6,6 +6,21 @@ This is a CLI tool designed to help analyze options spreads, calculate probabili
 
 This tool leverages the collective wisdom embedded in implied volatility to provide more accurate, probabilistic assessments of price movements and position risks. It uses a polynomial regression model to fit a smooth curve to the market's implied volatility smile, ensuring a robust and continuous probability distribution.
 
+## 🔑 Key Concepts
+
+### Position
+
+In this tool, a `Position` is a generalized representation of an options trade, encompassing both multi-leg spreads and single-leg options. It is defined by:
+
+- `type`: Call or Put.
+- `side`: Debit (long) or Credit (short).
+- `longStrike`: The strike price of the long option leg.
+- `shortStrike`: The strike price of the short option leg.
+- `netPremium`: The net premium paid or received for the position.
+- `isSpread`: A boolean indicating whether the position is a true multi-leg spread or a single option (where one leg is virtual).
+
+This abstraction allows the core analysis engine to process various option strategies uniformly.
+
 ## ✨ Features
 
 This CLI tool provides the following commands:
@@ -13,6 +28,7 @@ This CLI tool provides the following commands:
 - `list-expirations`: Lists available expiration dates for a given instrument.
 - `snapshot`: Fetches and displays the raw options chain data for a specific instrument and expiration.
 - `probabilities`: Computes and displays the probabilistic price distribution for an underlying asset at a given expiration.
+- `analyze-option`: Analyzes a single option position (long or short), providing detailed risk/reward and probabilistic metrics.
 - `analyze-spread`: Analyzes a single, user-defined vertical spread, providing detailed risk/reward and probabilistic metrics.
 
 ## 🔬 Methodology
@@ -136,7 +152,33 @@ Strike   P(<=K)    1-P(<=K)
 ...
 ```
 
-### 4. `analyze-spread`
+### 4. `analyze-option`
+
+Analyzes a single option position (long or short), providing detailed risk/reward and probabilistic metrics. This command reuses the underlying spread analysis engine by treating a single option as a "virtual" spread with one real leg and one theoretical, far out-of-the-money leg.
+
+- **Usage:**
+
+  ```bash
+  npm run cli -- analyze-option <source> <instrument> <expiration> --type <call|put> --strike <k> --side <debit|credit> [--virtual-strike-offset <percentage>]
+  ```
+
+  - `<source>`: Data source (e.g., `deribit`).
+  - `<instrument>`: Instrument to analyze (e.g., `SOL-USDC`).
+  - `<expiration>`: Expiration date (YYYY-MM-DD).
+  - `--type <call|put>`: **(Required)** Type of the option (call or put).
+  - `--strike <k>`: **(Required)** The strike price of the single option.
+  - `--side <debit|credit>`: **(Required)** Whether the option position is a debit (long) or credit (short) strategy.
+  - `--virtual-strike-offset <percentage>`: **(Optional)** Percentage offset from the current price to determine the virtual strike for the "other" leg. Defaults to `90` (i.e., 90% away from the current price).
+
+- **Virtual Leg Concept:**
+  To leverage the existing spread analysis engine, a single option is modeled as a spread where one leg is the actual option you specify, and the other is a "virtual" leg. This virtual leg is placed far out-of-the-money (OTM) so its impact on the overall payoff is negligible for realistic price movements.
+  - For a **long option (debit)**, the virtual leg is a short option placed far OTM to cap theoretical profit (e.g., a long call is paired with a short call far above the current price).
+  - For a **short option (credit)**, the virtual leg is a long option placed far OTM to cap theoretical loss (e.g., a short call is paired with a long call far above the current price).
+
+- **Output Metrics:**
+  The output metrics are the same as for `analyze-spread`, but interpreted for a single option. For example, "Max Profit" for a long call will be "Unlimited" as the virtual short leg is theoretically too far away to be hit.
+
+### 5. `analyze-spread`
 
 Analyzes a single, user-defined vertical spread, providing detailed risk/reward and probabilistic metrics.
 
